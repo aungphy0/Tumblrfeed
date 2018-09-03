@@ -13,17 +13,22 @@ class PhotosViewController: UIViewController, UITableViewDataSource, UITableView
 
     var posts: [[String: Any]] = []
     @IBOutlet var tableView: UITableView!
+    var refreshControl = UIRefreshControl()
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.rowHeight = 250
+        tableView.rowHeight = 260
         fetchPhotos()
+        self.refreshControl.addTarget(self, action:  #selector(PhotosViewController.didPullToRefresh(_ :)), for: .valueChanged)
+        tableView.insertSubview(refreshControl, at: 0)
     }
     
-    
+    @objc func didPullToRefresh(_ refreshControl: UIRefreshControl){
+        fetchPhotos()
+    }
     
     func fetchPhotos(){
         
@@ -33,6 +38,17 @@ class PhotosViewController: UIViewController, UITableViewDataSource, UITableView
         let task = session.dataTask(with: url) { (data, response, error) in
             if let error = error {
                 print(error.localizedDescription)
+                let alertController = UIAlertController(title: "Cannot Get Photos", message: error.localizedDescription, preferredStyle: .alert)
+                // create a cancel action
+                let cancelAction = UIAlertAction(title: "OK", style: .cancel) { (action) in
+                    // handle cancel response here. Doing nothing will dismiss the view.
+                }
+                // add the cancel action to the alertController
+                alertController.addAction(cancelAction)
+                
+                DispatchQueue.main.async {
+                    self.present(alertController, animated: true, completion: nil)
+                }
             } else if let data = data,
                 let dataDictionary = try! JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                 
@@ -42,6 +58,7 @@ class PhotosViewController: UIViewController, UITableViewDataSource, UITableView
                 self.posts = responseDictionary["posts"] as! [[String: Any]]
                
                 self.tableView.reloadData()
+                self.refreshControl.endRefreshing()
             }
         }
         task.resume()
